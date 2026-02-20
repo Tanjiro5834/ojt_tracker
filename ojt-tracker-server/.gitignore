@@ -1,0 +1,38 @@
+# ======================
+# Node.js
+# ======================
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+package-lock.json
+
+# Environment variables
+.env
+.env.*
+
+# Logs
+logs/
+*.log
+
+# OS Files
+.DS_Store
+Thumbs.db
+
+# VS Code
+.vscode/
+
+# XAMPP / Local server stuff
+xampp/
+*.sql
+
+# Build folders (future-proof)
+dist/
+build/
+
+# Coverage
+coverage/
+
+# Misc
+*.pid
+*.seed
