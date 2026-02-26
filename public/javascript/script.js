@@ -1,77 +1,8 @@
-// --- DATA LAYER ---
-const MOCK_DATA = {
-  currentUser: { name: "Alex Johnson", role: "student", id: "S1" },
-  students: [
-    {
-      id: "S1",
-      name: "Alex Johnson",
-      email: "alex.j@university.edu",
-      currentHours: 142,
-      requiredHours: 300,
-      status: "active",
-      supervisor: "Dr. Robert",
-    },
-    {
-      id: "S2",
-      name: "Maria Garcia",
-      email: "m.garcia@university.edu",
-      currentHours: 285,
-      requiredHours: 300,
-      status: "active",
-      supervisor: "Dr. Robert",
-    },
-    {
-      id: "S3",
-      name: "James Wilson",
-      email: "j.wilson@university.edu",
-      currentHours: 42,
-      requiredHours: 300,
-      status: "warning",
-      supervisor: "Prof. Elena",
-    },
-  ],
-  logs: [
-    {
-      id: 1,
-      studentId: "S1",
-      date: "2023-11-15",
-      hours: 8,
-      description: "Frontend development for Dashboard",
-      status: "approved",
-    },
-    {
-      id: 2,
-      studentId: "S1",
-      date: "2023-11-16",
-      hours: 6,
-      description: "API Integration testing",
-      status: "pending",
-    },
-    {
-      id: 3,
-      studentId: "S2",
-      date: "2023-11-16",
-      hours: 8,
-      description: "Documentation update",
-      status: "pending",
-    },
-    {
-      id: 4,
-      studentId: "S1",
-      date: "2023-11-14",
-      hours: 8,
-      description: "Initial setup",
-      status: "approved",
-    },
-  ],
-};
+let currentStudent = null
+let currentLogs = []
 
-let currentRole = "student";
-let currentTab = "dashboard";
-
-// --- CORE FUNCTIONS ---
-
-function init() {
+async function init() {
+  await loadStudent();
   lucide.createIcons();
   renderDashboard();
 }
@@ -79,7 +10,7 @@ function init() {
 function handleLogin() {
   document.getElementById("login-page").classList.add("hidden");
   document.getElementById("dashboard-layout").classList.remove("hidden");
-  updateRole(currentRole);
+  renderDashboard()
 }
 
 function handleLogout() {
@@ -87,58 +18,45 @@ function handleLogout() {
   document.getElementById("dashboard-layout").classList.add("hidden");
 }
 
-function updateRole(role) {
-  currentRole = role;
-  const badge = document.getElementById("role-badge");
-  badge.innerText = role.toUpperCase();
-
-  // Toggle sidebar menus
-  ["nav-student", "nav-supervisor", "nav-admin"].forEach((id) => {
-    document.getElementById(id).classList.add("hidden");
-  });
-  document.getElementById(`nav-${role}`).classList.remove("hidden");
-
-  // Default tabs per role
-  if (role === "student") currentTab = "dashboard";
-  if (role === "supervisor") currentTab = "supervision";
-  if (role === "admin") currentTab = "admin-overview";
-
-  renderDashboard();
-  lucide.createIcons();
-}
-
-function switchTab(tab) {
-  currentTab = tab;
-  renderDashboard();
-  lucide.createIcons();
-}
-
 function renderDashboard() {
   const container = document.getElementById("content-area");
-  let html = "";
 
-  if (currentRole === "student") {
-    if (currentTab === "dashboard") html = renderStudentDashboard();
-    else html = renderStudentLogs();
-  } else if (currentRole === "supervisor") {
-    if (currentTab === "supervision") html = renderSupervisorDashboard();
-    else html = renderSupervisorApprovals();
-  } else if (currentRole === "admin") {
-    html = renderAdminDashboard();
+  if (!currentStudent) {
+    container.innerHTML = `
+      <div class="p-8 text-slate-500 font-medium">
+        Loading student data...
+      </div>
+    `;
+    return;
   }
 
-  container.innerHTML = html;
+  container.innerHTML = renderStudentDashboard();
   lucide.createIcons();
 }
 
 // --- RENDERERS ---
 
 function renderStudentDashboard() {
-  const student = MOCK_DATA.students[0];
-  const percent = (
-    (student.currentHours / student.requiredHours) *
-    100
-  ).toFixed(1);
+  const student = currentStudent;
+  const logs = currentLogs;  
+  const approvedLogs = logs.filter(
+    l => l.studentId === student.id && l.status === "approved"
+    );
+
+  const totalHours = approvedLogs.reduce(
+    (sum, log) => sum + log.hours,
+    0
+    );
+
+  const percent = student.requiredHours > 0
+    ? ((totalHours / student.requiredHours) * 100).toFixed(1)
+    : 0;
+
+  const approvedCount = approvedLogs.length;
+
+  const pendingCount = logs.filter(
+    l => l.studentId === student.id && l.status === "pending"
+  ).length;
 
   return `
                 <div class="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
@@ -161,7 +79,7 @@ function renderStudentDashboard() {
                             </div>
                             <div>
                                 <p class="text-sm font-semibold text-slate-400">Total Hours</p>
-                                <p class="text-2xl font-extrabold text-slate-800">${student.currentHours} / ${student.requiredHours}</p>
+                                <p class="text-2xl font-extrabold text-slate-800">${totalHours} / ${student.requiredHours}</p>
                             </div>
                         </div>
                         <div class="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm flex items-center gap-5">
@@ -170,7 +88,7 @@ function renderStudentDashboard() {
                             </div>
                             <div>
                                 <p class="text-sm font-semibold text-slate-400">Approved Logs</p>
-                                <p class="text-2xl font-extrabold text-slate-800">12 Entries</p>
+                                <p class="text-2xl font-extrabold text-slate-800">${approvedCount} Entries</p>
                             </div>
                         </div>
                         <div class="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm flex items-center gap-5">
@@ -179,7 +97,7 @@ function renderStudentDashboard() {
                             </div>
                             <div>
                                 <p class="text-sm font-semibold text-slate-400">Pending</p>
-                                <p class="text-2xl font-extrabold text-slate-800">2 Entries</p>
+                                <p class="text-2xl font-extrabold text-slate-800">${pendingCount} Entries</p>
                             </div>
                         </div>
                     </div>
@@ -221,29 +139,36 @@ function renderStudentDashboard() {
                                 </tr>
                             </thead>
                             <tbody class="divide-y divide-slate-100">
-                                ${MOCK_DATA.logs
-                                  .filter((l) => l.studentId === "S1")
-                                  .map(
-                                    (log) => `
-                                    <tr class="hover:bg-slate-50/50 transition-colors">
+                            ${
+                                logs.filter(l => l.studentId === student.id).length === 0
+                                ? `
+                                    <tr>
+                                    <td colspan="4" class="px-8 py-10 text-center text-slate-400 font-medium">
+                                        No activities logged yet.
+                                    </td>
+                                    </tr>
+                                `
+                                : logs
+                                    .filter(l => l.studentId === student.id)
+                                    .map(log => `
+                                        <tr class="hover:bg-slate-50/50 transition-colors">
                                         <td class="px-8 py-4 text-sm font-semibold text-slate-600">${log.date}</td>
                                         <td class="px-8 py-4 text-sm text-slate-500">${log.description}</td>
                                         <td class="px-8 py-4 text-sm font-bold text-slate-700">${log.hours}h</td>
                                         <td class="px-8 py-4 text-right">
-                                            <span class="px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-tighter ${
-                                              log.status === "approved"
+                                            <span class="px-3 py-1 rounded-full text-[10px] font-bold uppercase ${
+                                            log.status === "approved"
                                                 ? "bg-emerald-100 text-emerald-700"
                                                 : log.status === "pending"
-                                                  ? "bg-amber-100 text-amber-700"
-                                                  : "bg-rose-100 text-rose-700"
+                                                ? "bg-amber-100 text-amber-700"
+                                                : "bg-rose-100 text-rose-700"
                                             }">
-                                                ${log.status}
+                                            ${log.status}
                                             </span>
                                         </td>
-                                    </tr>
-                                `,
-                                  )
-                                  .join("")}
+                                        </tr>
+                                    `).join("")
+                            }
                             </tbody>
                         </table>
                     </div>
@@ -267,7 +192,7 @@ function renderSupervisorDashboard() {
                                 <h3 class="font-bold text-lg">Assigned Students</h3>
                             </div>
                             <div class="grid grid-cols-1 lg:grid-cols-2 gap-0 divide-y lg:divide-y-0 lg:divide-x divide-slate-100">
-                                ${MOCK_DATA.students
+                                ${currentStudent.students
                                   .map(
                                     (student) => `
                                     <div class="p-8 hover:bg-slate-50 transition-colors flex items-center justify-between">
@@ -309,10 +234,10 @@ function renderSupervisorDashboard() {
                                 </tr>
                             </thead>
                             <tbody>
-                                ${MOCK_DATA.logs
+                                ${logs
                                   .filter((l) => l.status === "pending")
                                   .map((log) => {
-                                    const student = MOCK_DATA.students.find(
+                                    const student = currentStudent.students.find(
                                       (s) => s.id === log.studentId,
                                     );
                                     return `
@@ -419,7 +344,7 @@ function renderAdminDashboard() {
                             <div class="overflow-y-auto flex-1">
                                 <table class="w-full text-left">
                                     <tbody class="divide-y divide-slate-50">
-                                        ${MOCK_DATA.students
+                                        ${students
                                           .map(
                                             (s) => `
                                             <tr class="hover:bg-slate-50 transition-colors">
@@ -476,7 +401,7 @@ function openLogModal() {
 }
 
 function openTargetModal() {
-  const student = MOCK_DATA.students.find(s => s.id === "S1");
+  const student = currentStudent;
 
   const container = document.getElementById("modal-container");
   const title = document.getElementById("modal-title");
@@ -506,20 +431,70 @@ function openTargetModal() {
   container.classList.remove("hidden");
 }
 
-function saveTargetHours() {
+async function saveTargetHours() {
   const newHours = parseInt(document.getElementById("target-hours").value);
 
   if (!newHours || newHours <= 0) {
-    alert("Please enter a valid number.");
+    alert("Invalid number.");
     return;
   }
 
-  const student = MOCK_DATA.students.find(s => s.id === "S1");
-  student.requiredHours = newHours;
+  try {
+    const response = await fetch("http://localhost:3000/api/update-target-hours", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        studentId: currentStudent.id,
+        requiredHours: newHours
+      })
+    });
 
-  closeModal();
-  showToast("Target hours updated successfully.");
-  renderDashboard();
+    const data = await response.json();
+
+    if (!response.ok) {
+      console.error("Server error:", data);
+      alert(data.message);
+      return;
+    }
+
+    await loadStudent();  // re-fetch from DB
+    closeModal();
+    renderDashboard();
+    showToast("Target hours updated.");
+
+  } catch (err) {
+    console.error(err);
+    alert("Server failed.");
+  }
+}
+
+async function loadStudent() {
+  try {
+    const studentId = 7; // 🔥 TEMP — replace later with auth-based ID
+
+    // Fetch student info
+    const studentRes = await fetch(`http://localhost:3000/api/user/${studentId}`);
+    if (!studentRes.ok) {
+      throw new Error("Failed to load student");
+    }
+
+    currentStudent = await studentRes.json();
+
+    // Fetch logs
+    const logsRes = await fetch(`http://localhost:3000/api/logs/${studentId}`);
+    if (!logsRes.ok) {
+      throw new Error("Failed to load logs");
+    }
+
+    currentLogs = await logsRes.json();
+
+    console.log("Student loaded:", currentStudent);
+    console.log("Logs loaded:", currentLogs);
+
+  } catch (error) {
+    console.error("Load student error:", error);
+    alert("Failed to load student data.");
+  }
 }
 
 function showRegister() {
@@ -552,6 +527,14 @@ async function handleRegister() {
     return;
   }
 
+  currentStudent = {
+    name,
+    email,
+    currentHours: 0,
+    requiredHours: 300,
+    id: Date.now().toString()
+  };
+
   alert("Registered successfully!");
   showLogin();
 }
@@ -560,9 +543,9 @@ function closeModal() {
   document.getElementById("modal-container").classList.add("hidden");
 }
 
-function submitLog() {
+async function submitLog() {
   const date = document.getElementById("log-date").value;
-  const hours = document.getElementById("log-hours").value;
+  const hours = parseInt(document.getElementById("log-hours").value);
   const desc = document.getElementById("log-desc").value;
 
   if (!hours || !desc) {
@@ -570,23 +553,37 @@ function submitLog() {
     return;
   }
 
-  // Mock saving
-  MOCK_DATA.logs.unshift({
-    id: Date.now(),
-    studentId: "S1",
-    date: date,
-    hours: parseInt(hours),
-    description: desc,
-    status: "pending",
-  });
+  try {
+    const response = await fetch("http://localhost:3000/api/logs", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        studentId: currentStudent.id,
+        date,
+        hours,
+        description: desc
+      })
+    });
 
-  closeModal();
-  showToast("Activity log submitted for approval!");
-  renderDashboard();
+    if (!response.ok) {
+      const data = await response.json();
+      alert(data.message);
+      return;
+    }
+
+    await loadStudent(); // 🔥 pull fresh data
+    closeModal();
+    renderDashboard();
+    showToast("Activity log submitted!");
+
+  } catch (err) {
+    console.error(err);
+    alert("Server error.");
+  }
 }
 
 function approveLog(id) {
-  const log = MOCK_DATA.logs.find((l) => l.id === id);
+  const log = currentLogs.find((l) => l.id === id);
   if (log) log.status = "approved";
   showToast("Log entry approved successfully.");
   renderDashboard();
@@ -595,7 +592,7 @@ function approveLog(id) {
 function rejectLog(id) {
   const reason = prompt("Enter rejection reason:");
   if (reason) {
-    const log = MOCK_DATA.logs.find((l) => l.id === id);
+    const log = currentLogs.find((l) => l.id === id);
     if (log) log.status = "rejected";
     showToast("Log entry has been rejected.");
     renderDashboard();
