@@ -2,15 +2,55 @@ let currentStudent = null
 let currentLogs = []
 
 async function init() {
-  await loadStudent();
+  try {
+    await loadStudent();
+
+    // If successful → user has active session
+    document.getElementById("login-page").classList.add("hidden");
+    document.getElementById("dashboard-layout").classList.remove("hidden");
+
+    renderDashboard();
+
+  } catch (err) {
+    // Not logged in → show login page
+    document.getElementById("login-page").classList.remove("hidden");
+    document.getElementById("dashboard-layout").classList.add("hidden");
+  }
+
   lucide.createIcons();
-  renderDashboard();
 }
 
-function handleLogin() {
-  document.getElementById("login-page").classList.add("hidden");
-  document.getElementById("dashboard-layout").classList.remove("hidden");
-  renderDashboard()
+async function handleLogin() {
+  const email = document.getElementById("login-email").value;
+  const password = document.getElementById("login-password").value;
+
+  try {
+    const response = await fetch("http://localhost:3000/api/login", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      credentials: "include",
+      body: JSON.stringify({ email, password })
+    });
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      alert(data.message);
+      return;
+    }
+
+    // 🔥 Now session is stored
+    await loadStudent();
+
+    document.getElementById("login-page").classList.add("hidden");
+    document.getElementById("dashboard-layout").classList.remove("hidden");
+
+    renderDashboard();
+
+  } catch (err) {
+    console.error(err);
+    alert("Login failed.");
+  }
 }
 
 function handleLogout() {
@@ -36,17 +76,37 @@ function renderDashboard() {
 
 // --- RENDERERS ---
 
+function formatDate(dateString) {
+  const date = new Date(dateString);
+
+  return date.toLocaleString("en-US", {
+    month: "long",
+    day: "numeric",
+    year: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+    hour12: true
+  });
+}
+
+function formatHours(hours) {
+  const value = Number(hours);
+
+  return value === 1
+    ? "1 hour"
+    : `${value} hours`;
+}
+
 function renderStudentDashboard() {
   const student = currentStudent;
   const logs = currentLogs;  
   const approvedLogs = logs.filter(
-    l => l.studentId === student.id && l.status === "approved"
-    );
+    l => l.userId === student.id && l.status === "approved"
+  );
 
-  const totalHours = approvedLogs.reduce(
-    (sum, log) => sum + log.hours,
-    0
-    );
+  const totalHours = logs
+  .filter(l => l.userId === student.id && (l.status === "approved" || l.status === "pending"))
+  .reduce((sum, log) => sum + Number(log.hours), 0);
 
   const percent = student.requiredHours > 0
     ? ((totalHours / student.requiredHours) * 100).toFixed(1)
@@ -55,7 +115,7 @@ function renderStudentDashboard() {
   const approvedCount = approvedLogs.length;
 
   const pendingCount = logs.filter(
-    l => l.studentId === student.id && l.status === "pending"
+    l => l.userId === student.id && l.status === "pending"
   ).length;
 
   return `
@@ -112,7 +172,7 @@ function renderStudentDashboard() {
                             <div class="bg-blue-600 h-full animate-progress" style="width: ${percent}%"></div>
                         </div>
                         <div class="flex justify-between mt-4 text-sm text-slate-400 font-medium">
-                            <span>0 hrs</span>
+                            <span>${totalHours} hrs</span>
                             <span class="flex items-center gap-2">
                                 Target: ${student.requiredHours} hrs
                                 <button onclick="openTargetModal()" 
@@ -140,7 +200,7 @@ function renderStudentDashboard() {
                             </thead>
                             <tbody class="divide-y divide-slate-100">
                             ${
-                                logs.filter(l => l.studentId === student.id).length === 0
+                                logs.filter(l => l.userId === student.id).length === 0
                                 ? `
                                     <tr>
                                     <td colspan="4" class="px-8 py-10 text-center text-slate-400 font-medium">
@@ -149,12 +209,12 @@ function renderStudentDashboard() {
                                     </tr>
                                 `
                                 : logs
-                                    .filter(l => l.studentId === student.id)
+                                    .filter(l => l.userId === student.id)
                                     .map(log => `
                                         <tr class="hover:bg-slate-50/50 transition-colors">
-                                        <td class="px-8 py-4 text-sm font-semibold text-slate-600">${log.date}</td>
+                                        <td class="px-8 py-4 text-sm font-semibold text-slate-600">${formatDate(log.date)}</td>
                                         <td class="px-8 py-4 text-sm text-slate-500">${log.description}</td>
-                                        <td class="px-8 py-4 text-sm font-bold text-slate-700">${log.hours}h</td>
+                                        <td class="px-8 py-4 text-sm font-bold text-slate-700">${formatHours(log.hours)}</td>
                                         <td class="px-8 py-4 text-right">
                                             <span class="px-3 py-1 rounded-full text-[10px] font-bold uppercase ${
                                             log.status === "approved"
@@ -238,7 +298,7 @@ function renderSupervisorDashboard() {
                                   .filter((l) => l.status === "pending")
                                   .map((log) => {
                                     const student = currentStudent.students.find(
-                                      (s) => s.id === log.studentId,
+                                      (s) => s.id === log.userId,
                                     );
                                     return `
                                     <tr class="border-b border-slate-50">
@@ -366,12 +426,35 @@ function renderAdminDashboard() {
             `;
 }
 
+function renderSidebar() {
+  const nav = document.getElementById("sidebar-nav");
+
+  nav.innerHTML = `
+    <button class="w-full text-left px-5 py-3 rounded-2xl hover:bg-slate-50 font-semibold text-slate-700 transition">
+      Dashboard
+    </button>
+
+    <button class="w-full text-left px-5 py-3 rounded-2xl hover:bg-slate-50 font-semibold text-slate-700 transition">
+      My Logs
+    </button>
+
+    <button class="w-full text-left px-5 py-3 rounded-2xl hover:bg-slate-50 font-semibold text-slate-700 transition">
+      Progress
+    </button>
+  `;
+}
+
 // --- INTERACTION LOGIC ---
 
 function openLogModal() {
   const container = document.getElementById("modal-container");
   const title = document.getElementById("modal-title");
   const body = document.getElementById("modal-body");
+
+  if (!container || !title || !body) {
+    console.error("Modal elements not found in DOM");
+    return;
+  }
 
   title.innerText = "Log New Activity";
   body.innerHTML = `
@@ -446,7 +529,8 @@ async function saveTargetHours() {
       body: JSON.stringify({
         studentId: currentStudent.id,
         requiredHours: newHours
-      })
+      }),
+      credentials: "include"
     });
 
     const data = await response.json();
@@ -459,6 +543,7 @@ async function saveTargetHours() {
 
     await loadStudent();  // re-fetch from DB
     closeModal();
+    renderSidebar();
     renderDashboard();
     showToast("Target hours updated.");
 
@@ -469,32 +554,29 @@ async function saveTargetHours() {
 }
 
 async function loadStudent() {
-  try {
-    const studentId = 7; // 🔥 TEMP — replace later with auth-based ID
+  const studentRes = await fetch("http://localhost:3000/api/user", {
+    credentials: "include"
+  });
 
-    // Fetch student info
-    const studentRes = await fetch(`http://localhost:3000/api/user/${studentId}`);
-    if (!studentRes.ok) {
-      throw new Error("Failed to load student");
-    }
-
-    currentStudent = await studentRes.json();
-
-    // Fetch logs
-    const logsRes = await fetch(`http://localhost:3000/api/logs/${studentId}`);
-    if (!logsRes.ok) {
-      throw new Error("Failed to load logs");
-    }
-
-    currentLogs = await logsRes.json();
-
-    console.log("Student loaded:", currentStudent);
-    console.log("Logs loaded:", currentLogs);
-
-  } catch (error) {
-    console.error("Load student error:", error);
-    alert("Failed to load student data.");
+  if (studentRes.status === 401) {
+    throw new Error("Not authenticated");
   }
+
+  if (!studentRes.ok) {
+    throw new Error("Failed to load student");
+  }
+
+  currentStudent = await studentRes.json();
+
+  const logsRes = await fetch("http://localhost:3000/api/logs", {
+    credentials: "include"
+  });
+
+  if (!logsRes.ok) {
+    throw new Error("Failed to load logs");
+  }
+
+  currentLogs = await logsRes.json();
 }
 
 function showRegister() {
@@ -558,11 +640,11 @@ async function submitLog() {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        studentId: currentStudent.id,
-        date,
-        hours,
-        description: desc
-      })
+      date,
+      hours,
+      description: desc
+    }),
+    credentials: "include"
     });
 
     if (!response.ok) {
@@ -573,6 +655,7 @@ async function submitLog() {
 
     await loadStudent(); // 🔥 pull fresh data
     closeModal();
+    renderSidebar();
     renderDashboard();
     showToast("Activity log submitted!");
 

@@ -133,7 +133,7 @@
                         </div>
                         <div class="space-y-2">
                             <label class="text-xs font-bold text-slate-400 uppercase tracking-widest ml-1">Password</label>
-                            <input id="login-pass" type="password" value="password123" class="w-full px-5 py-4 rounded-2xl bg-slate-50 border-none focus:ring-2 focus:ring-blue-500/20 transition-all outline-none" placeholder="••••••••">
+                            <input id="login-password" type="password" value="password123" class="w-full px-5 py-4 rounded-2xl bg-slate-50 border-none focus:ring-2 focus:ring-blue-500/20 transition-all outline-none" placeholder="••••••••">
                         </div>
                         <button onclick="handleLogin()" class="w-full bg-slate-900 hover:bg-black text-white font-bold py-5 rounded-2xl shadow-xl transition-all flex items-center justify-center gap-3 group btn-animate">
                             Sign In
@@ -198,6 +198,23 @@
         <div class="bg-slate-900 text-white px-8 py-4 rounded-3xl shadow-2xl flex items-center gap-4 border border-white/10">
             <div class="w-2 h-2 rounded-full bg-blue-500 animate-ping"></div>
             <span id="toast-message" class="font-bold text-sm tracking-tight"></span>
+        </div>
+    </div>
+
+    <!-- Modal -->
+    <div id="modal-container" class="hidden fixed inset-0 z-[200] flex items-center justify-center modal-overlay">
+        <div class="bg-white w-full max-w-lg mx-4 p-8 rounded-[2.5rem] shadow-2xl relative">
+            
+            <!-- Close Button -->
+            <button onclick="closeModal()" 
+                class="absolute top-5 right-6 text-slate-400 hover:text-slate-700 text-xl font-bold">
+                ×
+            </button>
+
+            <h2 id="modal-title" class="text-2xl font-bold mb-6"></h2>
+
+            <div id="modal-body"></div>
+
         </div>
     </div>
 
