@@ -1,25 +1,6 @@
 let currentStudent = null
 let currentLogs = []
 
-async function init() {
-  try {
-    await loadStudent();
-
-    // If successful → user has active session
-    document.getElementById("login-page").classList.add("hidden");
-    document.getElementById("dashboard-layout").classList.remove("hidden");
-
-    renderDashboard();
-
-  } catch (err) {
-    // Not logged in → show login page
-    document.getElementById("login-page").classList.remove("hidden");
-    document.getElementById("dashboard-layout").classList.add("hidden");
-  }
-
-  lucide.createIcons();
-}
-
 async function handleLogin() {
   const email = document.getElementById("login-email").value;
   const password = document.getElementById("login-password").value;
@@ -39,14 +20,7 @@ async function handleLogin() {
       return;
     }
 
-    // 🔥 Now session is stored
-    await loadStudent();
-
-    document.getElementById("login-page").classList.add("hidden");
-    document.getElementById("dashboard-layout").classList.remove("hidden");
-
-    renderDashboard();
-
+    window.location.href = "dashboard.php";
   } catch (err) {
     console.error(err);
     alert("Login failed.");
@@ -75,7 +49,6 @@ function renderDashboard() {
 }
 
 // --- RENDERERS ---
-
 function formatDate(dateString) {
   const date = new Date(dateString);
 
@@ -579,16 +552,6 @@ async function loadStudent() {
   currentLogs = await logsRes.json();
 }
 
-function showRegister() {
-  document.getElementById("login-page").classList.add("hidden");
-  document.getElementById("register-page").classList.remove("hidden");
-}
-
-function showLogin() {
-  document.getElementById("register-page").classList.add("hidden");
-  document.getElementById("login-page").classList.remove("hidden");
-}
-
 async function handleRegister() {
   const name = document.getElementById("reg-name").value;
   const email = document.getElementById("reg-email").value;
@@ -618,7 +581,7 @@ async function handleRegister() {
   };
 
   alert("Registered successfully!");
-  showLogin();
+  window.location.href = "login.php";
 }
 
 function closeModal() {
@@ -692,6 +655,3 @@ function showToast(message) {
     toast.classList.add("translate-y-24");
   }, 3000);
 }
-
-// Initialize App
-window.onload = init;
